@@ -3,7 +3,7 @@ mod image_operations;
 mod processor;
 pub mod rasterizer;
 mod skeleton;
-mod arc;
+pub mod arc;
 
 pub use geometry::*;
 pub use image_operations::*;
