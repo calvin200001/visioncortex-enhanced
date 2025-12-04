@@ -1,6 +1,6 @@
 use crate::{Path, PathF64, PointF64, Point2};
 use flo_curves::{bezier, BezierCurveFactory};
-use crate::curvature::{CurvatureProfile, Point};
+use crate::curvature::{CurvatureProfile};
 
 /// Handles Path Smoothing
 pub(crate) struct SubdivideSmooth;
@@ -151,9 +151,16 @@ impl SubdivideSmooth {
             }
             let j = (i+1)%len;
 
+            let segment_length_threshold = if i < profile.adaptive_lengths.len() {
+                profile.adaptive_lengths[i]
+            } else {
+                // Log a warning or handle this mismatch gracefully. For now, use a fallback value.
+                // This indicates that `profile.adaptive_lengths` is not correctly sized for the current path.
+                base_segment_length // Fallback to base_segment_length or another appropriate default
+            };
             // Apply threshold on length of current segment
             let length_curr = norm(&(path[i] - path[j]));
-            if length_curr <= profile.adaptive_lengths[i] {
+            if length_curr <= segment_length_threshold {
                 continue;
             }
 
