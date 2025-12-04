@@ -163,7 +163,10 @@ impl Shape {
             0.0,
             0.0,
             0,
-            0.0
+            0.0,
+            false, // curvature_aware (default to false for this context)
+            0.3,   // feature_threshold (default)
+            5,     // curvature_window (default)
         );
         paths.paths.truncate(1);
         let paths = paths.reduce(std::cmp::min(self.image.width, self.image.height) as f64);

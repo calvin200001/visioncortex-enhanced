@@ -1,8 +1,9 @@
-use crate::{PathI32, PointI32};
+use crate::{PathI32, PointI32, Path, PointF64};
+use crate::curvature::{CurvatureAnalyzer, Point, ArtisticSimplifier};
 
 use super::util::signed_area;
 
-pub(crate) struct PathSimplify;
+pub struct PathSimplify;
 
 #[derive(Copy, Clone, Debug)]
 pub enum PathSimplifyMode {
@@ -26,6 +27,18 @@ impl Default for PathSimplifyMode {
 }
 
 impl PathSimplify {
+    pub fn simplify_with_curvature(path: &PathI32, tolerance: f64, base_segment_length: f64) -> PathI32 {
+        let points_f64: Vec<Point> = path.path.iter().map(|p| Point::new(p.x as f64, p.y as f64)).collect();
+
+        let simplifier = ArtisticSimplifier::new(base_segment_length, tolerance);
+        let simplified_points_f64 = simplifier.simplify_with_curvature(&points_f64);
+
+        let mut result = PathI32::new();
+        for p in simplified_points_f64 {
+            result.add(PointI32::new(p.x as i32, p.y as i32));
+        }
+        result
+    }
 
     /// Returns a copy of a path after removing 1-pixel staircases.
     /// 

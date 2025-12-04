@@ -1,6 +1,7 @@
 use std::{cmp::Ordering};
 use crate::{BinaryImage, PathF64, PointF64, PathSimplifyMode};
-use super::{PathI32, smooth::SubdivideSmooth};
+use super::{PathI32, smooth::SubdivideSmooth, simplify::PathSimplify};
+use crate::curvature::CurvatureAnalyzer;
 
 #[derive(Debug, Default, Clone)]
 /// Series of connecting 2D Bezier Curves
@@ -69,10 +70,22 @@ impl Spline {
     /// Length threshold is specified in pixels (length unit in path coordinate system).
     pub fn from_image(
         image: &BinaryImage, clockwise: bool, corner_threshold: f64, outset_ratio: f64,
-        segment_length: f64, max_iterations: usize, splice_threshold: f64
+        segment_length: f64, max_iterations: usize, splice_threshold: f64,
+        curvature_aware: bool,
+        feature_threshold: f64,
+        curvature_window: usize,
     ) -> Self {
         let path = PathI32::image_to_path(image, clockwise, PathSimplifyMode::Polygon);
-        let path = path.smooth(corner_threshold, outset_ratio, segment_length, max_iterations);
+
+        let simplified_path = if curvature_aware {
+            PathSimplify::simplify_with_curvature(&path, feature_threshold, segment_length)
+        } else {
+            path
+        };
+
+        let analyzer = CurvatureAnalyzer::new(segment_length);
+        let profile = analyzer.analyze_path(&simplified_path.to_path_f64().path.iter().map(|p| crate::curvature::Point::new(p.x, p.y)).collect::<Vec<_>>());
+        let path = simplified_path.smooth(corner_threshold, outset_ratio, segment_length, max_iterations, &profile);
         Self::from_path_f64(&path, splice_threshold)
     }
 

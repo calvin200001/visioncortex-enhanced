@@ -1,7 +1,7 @@
 use std::fmt::{Debug, Write};
 use std::ops::{Add, AddAssign, Index, IndexMut, Mul, Range, RangeFrom, RangeInclusive, Sub};
 
-use crate::{BinaryImage, Point2, PointF64, PointI32, Shape, ToSvgString};
+use crate::{BinaryImage, Point2, PointF64, PointI32, Shape, ToSvgString, curvature::CurvatureProfile};
 use super::{PathSimplify, PathSimplifyMode, PathWalker, smooth::SubdivideSmooth, reduce::reduce};
 
 #[derive(Clone, Debug, Default)]
@@ -247,13 +247,14 @@ impl PathI32 {
     /// `outset_ratio` is a real number >= 1.0.
     /// `segment_length` is specified in pixels (length unit in path coordinate system).
     pub fn smooth(
-        &self, corner_threshold: f64, outset_ratio: f64, segment_length: f64, max_iterations: usize
+        &self, corner_threshold: f64, outset_ratio: f64, base_segment_length: f64, max_iterations: usize,
+        profile: &CurvatureProfile,
     ) -> PathF64 {
         assert!(max_iterations > 0);
         let mut corners = SubdivideSmooth::find_corners(self, corner_threshold);
         let mut path = self.to_path_f64();
         for _i in 0..max_iterations {
-            let result = SubdivideSmooth::subdivide_keep_corners(&path, &corners, outset_ratio, segment_length);
+            let result = SubdivideSmooth::subdivide_keep_corners(&path, &corners, outset_ratio, base_segment_length, profile);
             path = result.0;
             corners = result.1;
             if result.2 { // Can terminate early
@@ -262,28 +263,6 @@ impl PathI32 {
         }
         path
     }
-}
-
-impl PathF64 {
-    pub fn smooth(
-        &self, corner_threshold: f64, outset_ratio: f64, segment_length: f64, max_iterations: usize
-    ) -> PathF64 {
-        assert!(max_iterations > 0);
-        let mut corners = SubdivideSmooth::find_corners(self, corner_threshold);
-        let mut path = PathF64::new();
-        for _i in 0..max_iterations {
-            let result = SubdivideSmooth::subdivide_keep_corners(self, &corners, outset_ratio, segment_length);
-            path = result.0;
-            corners = result.1;
-            if result.2 { // Can terminate early
-                break;
-            }
-        }
-        path
-    }
-}
-
-impl PathI32 {
 
     /// Returns a copy of self after Path Simplification:
     /// 
@@ -327,6 +306,31 @@ impl PathI32 {
             path.extend(walker);
         }
         PathI32 { path }
+    }
+}
+
+impl PathF64 {
+    /// Returns a copy of self after Path Smoothing, preserving corners.
+    /// 
+    /// `corner_threshold` is specified in radians.
+    /// `outset_ratio` is a real number >= 1.0.
+    /// `segment_length` is specified in pixels (length unit in path coordinate system).
+    pub fn smooth(
+        &self, corner_threshold: f64, outset_ratio: f64, base_segment_length: f64, max_iterations: usize,
+        profile: &CurvatureProfile,
+    ) -> PathF64 {
+        assert!(max_iterations > 0);
+        let mut corners = SubdivideSmooth::find_corners(self, corner_threshold);
+        let mut path = self.clone();
+        for _i in 0..max_iterations {
+            let result = SubdivideSmooth::subdivide_keep_corners(self, &corners, outset_ratio, base_segment_length, profile);
+            path = result.0;
+            corners = result.1;
+            if result.2 { // Can terminate early
+                break;
+            }
+        }
+        path
     }
 }
 

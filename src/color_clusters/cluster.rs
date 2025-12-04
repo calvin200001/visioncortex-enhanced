@@ -112,7 +112,10 @@ impl Cluster {
         corner_threshold: f64,
         length_threshold: f64,
         max_iterations: usize,
-        splice_threshold: f64
+        splice_threshold: f64,
+        curvature_aware: bool,
+        feature_threshold: f64,
+        curvature_window: usize
     ) -> CompoundPath {
         let mut paths = CompoundPath::new();
         for cluster in self.to_image_with_hole(parent.width, hole).to_clusters(false).iter() {
@@ -121,7 +124,11 @@ impl Cluster {
                     x: self.rect.left + cluster.rect.left,
                     y: self.rect.top + cluster.rect.top,
                 }, &cluster.to_binary_image(), mode,
-                corner_threshold, length_threshold, max_iterations, splice_threshold)
+                corner_threshold, length_threshold, max_iterations, splice_threshold,
+                curvature_aware,
+                feature_threshold,
+                curvature_window,
+                )
             );
         }
         paths

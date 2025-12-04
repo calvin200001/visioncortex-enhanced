@@ -1,4 +1,4 @@
-use crate::{PathI32, PathF64, PointType, Spline};
+use crate::{PathI32, PathF64, PointType, Spline, curvature::{CurvatureAnalyzer, CurvatureProfile}};
 
 #[derive(Debug, Clone)]
 /// A collection of `Path` and `Spline` that represents a shape with holes
@@ -104,16 +104,28 @@ impl CompoundPath {
 
     const DEFAULT_MAX_ITERATIONS: usize = 10;
 
-    pub fn smooth(&self, corner_threshold: f64, outset_ratio: f64, segment_length: f64) -> Self {
+    pub fn smooth(&self, corner_threshold: f64, outset_ratio: f64, segment_length: f64,
+        curvature_aware: bool,
+        feature_threshold: f64,
+        curvature_window: usize
+    ) -> Self {
         CompoundPath {
             paths: self.paths.iter().map(|path| {
                 match path {
-                    CompoundPathElement::PathI32(path) => CompoundPathElement::PathF64(path.smooth(
-                        corner_threshold, outset_ratio, segment_length, Self::DEFAULT_MAX_ITERATIONS
-                    )),
-                    CompoundPathElement::PathF64(path) => CompoundPathElement::PathF64(path.smooth(
-                        corner_threshold, outset_ratio, segment_length, Self::DEFAULT_MAX_ITERATIONS
-                    )),
+                    CompoundPathElement::PathI32(path) => {
+                        let analyzer = CurvatureAnalyzer::new(segment_length);
+                        let profile = analyzer.analyze_path(&path.to_path_f64().path.iter().map(|p| crate::curvature::Point::new(p.x, p.y)).collect::<Vec<_>>());
+                        CompoundPathElement::PathF64(path.smooth(
+                            corner_threshold, outset_ratio, segment_length, Self::DEFAULT_MAX_ITERATIONS, &profile
+                        ))
+                    },
+                    CompoundPathElement::PathF64(path) => {
+                        let analyzer = CurvatureAnalyzer::new(segment_length);
+                        let profile = analyzer.analyze_path(&path.path.iter().map(|p| crate::curvature::Point::new(p.x, p.y)).collect::<Vec<_>>());
+                        CompoundPathElement::PathF64(path.smooth(
+                            corner_threshold, outset_ratio, segment_length, Self::DEFAULT_MAX_ITERATIONS, &profile
+                        ))
+                    },
                     CompoundPathElement::Spline(_) => panic!("unimplemented!()"),
                 }
             }).collect()

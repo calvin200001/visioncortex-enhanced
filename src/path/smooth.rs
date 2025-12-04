@@ -1,5 +1,6 @@
 use crate::{Path, PathF64, PointF64, Point2};
 use flo_curves::{bezier, BezierCurveFactory};
+use crate::curvature::{CurvatureProfile, Point};
 
 /// Handles Path Smoothing
 pub(crate) struct SubdivideSmooth;
@@ -127,7 +128,8 @@ impl SubdivideSmooth {
     /// Returns a smoothed path, a Vec<bool> representing updated corner positions,
     /// and `true` when no further subdivision is needed.
     pub fn subdivide_keep_corners(
-        path: &PathF64, corners: &[bool], outset_ratio: f64, segment_length: f64
+        path: &PathF64, corners: &[bool], outset_ratio: f64, segment_length: f64,
+        profile: &CurvatureProfile,
     ) -> (PathF64, Vec<bool>, bool) {
 
         let path = &path.path[0..(path.path.len()-1)];
@@ -151,7 +153,7 @@ impl SubdivideSmooth {
 
             // Apply threshold on length of current segment
             let length_curr = norm(&(path[i] - path[j]));
-            if length_curr <= segment_length {
+            if length_curr <= profile.adaptive_lengths[i] {
                 continue;
             }
 

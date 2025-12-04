@@ -1,4 +1,6 @@
 pub mod color_clusters;
+pub mod curvature;
+pub use curvature::{CurvatureAnalyzer, CurvatureProfile};
 mod numeric;
 mod path;
 mod shape;
