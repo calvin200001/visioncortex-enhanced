@@ -115,7 +115,8 @@ impl Cluster {
         splice_threshold: f64,
         curvature_aware: bool,
         feature_threshold: f64,
-        curvature_window: usize
+        curvature_window: usize,
+        penalty_tolerance: f64, // Add penalty_tolerance here
     ) -> CompoundPath {
         let mut paths = CompoundPath::new();
         for cluster in self.to_image_with_hole(parent.width, hole).to_clusters(false).iter() {
@@ -128,6 +129,7 @@ impl Cluster {
                 curvature_aware,
                 feature_threshold,
                 curvature_window,
+                penalty_tolerance, // Pass penalty_tolerance here
                 )
             );
         }

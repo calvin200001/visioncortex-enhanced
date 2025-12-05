@@ -84,7 +84,7 @@ impl Spline {
             path
         };
 
-        let analyzer = CurvatureAnalyzer::new(segment_length);
+        let analyzer = CurvatureAnalyzer::new(segment_length, curvature_window, feature_threshold);
         let profile = analyzer.analyze_path(&simplified_path.to_path_f64().path.iter().map(|p| crate::curvature::Point::new(p.x, p.y)).collect::<Vec<_>>());
         let path = simplified_path.smooth(corner_threshold, outset_ratio, segment_length, max_iterations, &profile);
         Self::from_path_f64(&path, splice_threshold)
