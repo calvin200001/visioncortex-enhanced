@@ -43,7 +43,7 @@ impl<T> Path<T>
     }
 
     /// Returns an iterator on the vector of points in the path
-    pub fn iter(&self) -> std::slice::Iter<T> {
+    pub fn iter(&self) -> std::slice::Iter<'_, T> {
         self.path.iter()
     }
 
@@ -323,7 +323,7 @@ impl PathF64 {
         let mut corners = SubdivideSmooth::find_corners(self, corner_threshold);
         let mut path = self.clone();
         for _i in 0..max_iterations {
-            let result = SubdivideSmooth::subdivide_keep_corners(self, &corners, outset_ratio, base_segment_length, profile);
+            let result = SubdivideSmooth::subdivide_keep_corners(&path, &corners, outset_ratio, base_segment_length, profile);
             path = result.0;
             corners = result.1;
             if result.2 { // Can terminate early

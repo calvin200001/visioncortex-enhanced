@@ -156,7 +156,7 @@ impl SubdivideSmooth {
             } else {
                 // Log a warning or handle this mismatch gracefully. For now, use a fallback value.
                 // This indicates that `profile.adaptive_lengths` is not correctly sized for the current path.
-                base_segment_length // Fallback to base_segment_length or another appropriate default
+                segment_length // Fallback to segment_length or another appropriate default
             };
             // Apply threshold on length of current segment
             let length_curr = norm(&(path[i] - path[j]));

@@ -276,7 +276,7 @@ impl ColorImage {
         }
     }
 
-    pub fn iter(&self) -> ColorImageIter {
+    pub fn iter(&self) -> ColorImageIter<'_> {
         ColorImageIter {
             im: self,
             curr: 0,

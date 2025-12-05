@@ -18,7 +18,7 @@ pub struct Clusters {
 }
 
 impl Cluster {
-    pub fn iter(&self) -> std::slice::Iter<PointI32> {
+    pub fn iter(&self) -> std::slice::Iter<'_, PointI32> {
         self.points.iter()
     }
 
@@ -266,7 +266,7 @@ impl Cluster {
 }
 
 impl Clusters {
-    pub fn iter(&self) -> std::slice::Iter<Cluster> {
+    pub fn iter(&self) -> std::slice::Iter<'_, Cluster> {
         self.clusters.iter()
     }
 

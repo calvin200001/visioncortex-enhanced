@@ -1,4 +1,4 @@
-use crate::{PathI32, PathF64, PointType, Spline, curvature::{CurvatureAnalyzer, CurvatureProfile}};
+use crate::{PathI32, PathF64, PointType, Spline, curvature::{CurvatureAnalyzer}};
 
 #[derive(Debug, Clone)]
 /// A collection of `Path` and `Spline` that represents a shape with holes
@@ -28,11 +28,11 @@ impl CompoundPath {
         }
     }
 
-    pub fn iter(&self) -> std::slice::Iter<CompoundPathElement> {
+    pub fn iter(&self) -> std::slice::Iter<'_, CompoundPathElement> {
         self.paths.iter()
     }
 
-    pub fn iter_mut(&mut self) -> std::slice::IterMut<CompoundPathElement> {
+    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, CompoundPathElement> {
         self.paths.iter_mut()
     }
 
@@ -105,9 +105,9 @@ impl CompoundPath {
     const DEFAULT_MAX_ITERATIONS: usize = 10;
 
     pub fn smooth(&self, corner_threshold: f64, outset_ratio: f64, segment_length: f64,
-        curvature_aware: bool,
-        feature_threshold: f64,
-        curvature_window: usize
+        _curvature_aware: bool,
+        _feature_threshold: f64,
+        _curvature_window: usize
     ) -> Self {
         CompoundPath {
             paths: self.paths.iter().map(|path| {

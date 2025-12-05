@@ -28,7 +28,7 @@ impl Spline {
     }
 
     /// Returns an iterator on the vector of points on the spline
-    pub fn iter(&self) -> std::slice::Iter<PointF64> {
+    pub fn iter(&self) -> std::slice::Iter<'_, PointF64> {
         self.points.iter()
     }
 
@@ -73,7 +73,7 @@ impl Spline {
         segment_length: f64, max_iterations: usize, splice_threshold: f64,
         curvature_aware: bool,
         feature_threshold: f64,
-        curvature_window: usize,
+        _curvature_window: usize,
     ) -> Self {
         let path = PathI32::image_to_path(image, clockwise, PathSimplifyMode::Polygon);
 

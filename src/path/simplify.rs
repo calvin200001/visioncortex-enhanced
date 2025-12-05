@@ -1,5 +1,5 @@
-use crate::{PathI32, PointI32, Path, PointF64};
-use crate::curvature::{CurvatureAnalyzer, Point, ArtisticSimplifier};
+use crate::{PathI32, PointI32};
+use crate::curvature::{Point, ArtisticSimplifier};
 
 use super::util::signed_area;
 
