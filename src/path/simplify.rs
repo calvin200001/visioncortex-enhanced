@@ -27,10 +27,10 @@ impl Default for PathSimplifyMode {
 }
 
 impl PathSimplify {
-    pub fn simplify_with_curvature(path: &PathI32, tolerance: f64, base_segment_length: f64) -> PathI32 {
+    pub fn simplify_with_curvature(path: &PathI32, penalty_tolerance: f64, base_segment_length: f64, window_size: usize, feature_threshold: f64) -> PathI32 {
         let points_f64: Vec<Point> = path.path.iter().map(|p| Point::new(p.x as f64, p.y as f64)).collect();
 
-        let simplifier = ArtisticSimplifier::new(base_segment_length, tolerance);
+        let simplifier = ArtisticSimplifier::new(base_segment_length, penalty_tolerance, window_size, feature_threshold);
         let simplified_points_f64 = simplifier.simplify_with_curvature(&points_f64);
 
         let mut result = PathI32::new();

@@ -38,11 +38,11 @@ pub struct CurvatureAnalyzer {
 }
 
 impl CurvatureAnalyzer {
-    pub fn new(base_segment_length: f64) -> Self {
+    pub fn new(base_segment_length: f64, window_size: usize, feature_threshold: f64) -> Self {
         Self {
             base_segment_length,
-            window_size: 5,
-            feature_threshold: 0.3, // radians
+            window_size,
+            feature_threshold,
         }
     }
     
@@ -172,9 +172,9 @@ pub struct ArtisticSimplifier {
 }
 
 impl ArtisticSimplifier {
-    pub fn new(base_segment_length: f64, penalty_tolerance: f64) -> Self {
+    pub fn new(base_segment_length: f64, penalty_tolerance: f64, window_size: usize, feature_threshold: f64) -> Self {
         Self {
-            analyzer: CurvatureAnalyzer::new(base_segment_length),
+            analyzer: CurvatureAnalyzer::new(base_segment_length, window_size, feature_threshold),
             penalty_tolerance,
         }
     }

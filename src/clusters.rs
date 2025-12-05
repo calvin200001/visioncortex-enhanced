@@ -65,6 +65,7 @@ impl Cluster {
         curvature_aware: bool,
         feature_threshold: f64,
         curvature_window: usize,
+        penalty_tolerance: f64,
     ) -> CompoundPath {
         let origin = PointI32 {
             x: self.rect.left,
@@ -81,6 +82,7 @@ impl Cluster {
             curvature_aware,
             feature_threshold,
             curvature_window,
+            penalty_tolerance,
         )
     }
 
@@ -95,6 +97,7 @@ impl Cluster {
         curvature_aware: bool,
         feature_threshold: f64,
         curvature_window: usize,
+        penalty_tolerance: f64,
     ) -> CompoundPath {
         match mode {
             PathSimplifyMode::None | PathSimplifyMode::Polygon => {
@@ -116,6 +119,7 @@ impl Cluster {
                     curvature_aware,
                     feature_threshold,
                     curvature_window,
+                    penalty_tolerance,
                 );
                 let mut group = CompoundPath::new();
                 for mut spline in splines.into_iter() {
@@ -169,7 +173,8 @@ impl Cluster {
         splice_threshold: f64,
         curvature_aware: bool,
         feature_threshold: f64,
-        curvature_window: usize
+        curvature_window: usize,
+        penalty_tolerance: f64
     ) -> Vec<Spline> {
         let mut boundaries = vec![(image.clone(), PointI32 { x: 0, y: 0 })];
         let holes = image.negative().to_clusters(false);
@@ -197,7 +202,8 @@ impl Cluster {
                 image, i == 0, corner_threshold, Self::OUTSET_RATIO, segment_length, max_iterations, splice_threshold,
                 curvature_aware,
                 feature_threshold,
-                curvature_window
+                curvature_window,
+                penalty_tolerance
             );
             spline.offset(&offset.to_point_f64());
             if !spline.is_empty() {

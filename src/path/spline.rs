@@ -73,12 +73,13 @@ impl Spline {
         segment_length: f64, max_iterations: usize, splice_threshold: f64,
         curvature_aware: bool,
         feature_threshold: f64,
-        _curvature_window: usize,
+        curvature_window: usize,
+        penalty_tolerance: f64,
     ) -> Self {
         let path = PathI32::image_to_path(image, clockwise, PathSimplifyMode::Polygon);
 
         let simplified_path = if curvature_aware {
-            PathSimplify::simplify_with_curvature(&path, feature_threshold, segment_length)
+            PathSimplify::simplify_with_curvature(&path, penalty_tolerance, segment_length, curvature_window, feature_threshold)
         } else {
             path
         };
