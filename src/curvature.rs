@@ -284,7 +284,7 @@ pub fn demonstrate_enhancement() {
     ];
     
     // Create analyzer with VTracer-typical parameters
-            let simplifier = ArtisticSimplifier::new(8.0, 0.5, 5, 0.3, 5, 4.0);    
+            let simplifier = ArtisticSimplifier::new(8.0, 0.5, 5, 0.3);    
     // Simplify with curvature awareness
     let simplified = simplifier.simplify_with_curvature(&path);
     

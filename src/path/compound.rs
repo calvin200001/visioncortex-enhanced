@@ -105,32 +105,57 @@ impl CompoundPath {
     const DEFAULT_MAX_ITERATIONS: usize = 10;
 
     pub fn smooth(&self, corner_threshold: f64, outset_ratio: f64, segment_length: f64,
+
         curvature_aware: bool,
+
         feature_threshold: f64,
+
         curvature_window: usize,
-        penalty_tolerance: f64,
+
     ) -> Self {
+
         CompoundPath {
+
             paths: self.paths.iter().map(|path| {
+
                 match path {
+
                     CompoundPathElement::PathI32(path) => {
+
                         let analyzer = CurvatureAnalyzer::new(segment_length, curvature_window, feature_threshold);
+
                         let profile = analyzer.analyze_path(&path.to_path_f64().path.iter().map(|p| crate::curvature::Point::new(p.x, p.y)).collect::<Vec<_>>());
+
                         CompoundPathElement::PathF64(path.smooth(
-                            corner_threshold, outset_ratio, segment_length, Self::DEFAULT_MAX_ITERATIONS, &profile, penalty_tolerance
+
+                            corner_threshold, outset_ratio, segment_length, Self::DEFAULT_MAX_ITERATIONS, &profile
+
                         ))
+
                     },
+
                     CompoundPathElement::PathF64(path) => {
+
                         let analyzer = CurvatureAnalyzer::new(segment_length, curvature_window, feature_threshold);
+
                         let profile = analyzer.analyze_path(&path.path.iter().map(|p| crate::curvature::Point::new(p.x, p.y)).collect::<Vec<_>>());
+
                         CompoundPathElement::PathF64(path.smooth(
-                            corner_threshold, outset_ratio, segment_length, Self::DEFAULT_MAX_ITERATIONS, &profile, penalty_tolerance
+
+                            corner_threshold, outset_ratio, segment_length, Self::DEFAULT_MAX_ITERATIONS, &profile
+
                         ))
+
                     },
+
                     _ => path.clone()
+
                 }
+
             }).collect()
+
         }
+
     }}
 
 #[cfg(test)]
