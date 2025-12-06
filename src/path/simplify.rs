@@ -150,6 +150,3 @@ impl PathSimplify {
         area * area / l3
     }
 }
-
-
-}
