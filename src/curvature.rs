@@ -88,6 +88,26 @@ impl CurvatureAnalyzer {
         0.5 * ((p1.x - p0.x) * (p2.y - p0.y) - (p2.x - p0.x) * (p1.y - p0.y))
     }
     
+    /// Smooth curvature values using moving average
+    fn smooth_curvature(&self, curvatures: &[f64]) -> Vec<f64> {
+        let window = self.window_size.min(curvatures.len() / 2);
+        if window == 0 {
+            return curvatures.to_vec();
+        }
+        
+        curvatures
+            .iter()
+            .enumerate()
+            .map(|(i, _)| {
+                let start = i.saturating_sub(window);
+                let end = (i + window + 1).min(curvatures.len());
+                let sum: f64 = curvatures[start..end].iter().map(|k| k.abs()).sum();
+                let count = (end - start) as f64;
+                sum / count
+            })
+            .collect()
+    }
+    
     /// Analyze curvature along entire path
     pub fn analyze_path(&self, path: &[Point]) -> CurvatureProfile {
         if path.len() < 3 {
