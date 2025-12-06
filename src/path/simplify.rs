@@ -88,29 +88,8 @@ impl PathSimplify {
             return path.clone();
         }
         
-        // Calculate adaptive tolerance based on feature size
-        let tolerance = tolerance.unwrap_or_else(|| {
-            // Find bounding box of this path
-            let mut min_x = path_points[0].x;
-            let mut max_x = path_points[0].x;
-            let mut min_y = path_points[0].y;
-            let mut max_y = path_points[0].y;
-            
-            for p in path_points.iter() {
-                min_x = min_x.min(p.x);
-                max_x = max_x.max(p.x);
-                min_y = min_y.min(p.y);
-                max_y = max_y.max(p.y);
-            }
-            
-            let width = (max_x - min_x) as f64;
-            let height = (max_y - min_y) as f64;
-            let size = width.max(height);
-            
-            // Adaptive tolerance: 2.5% of feature size, clamped to reasonable range
-            let adaptive = size * 0.04;   // INCREASE to 4% (not decrease to 1.5%)
-            adaptive.clamp(0.8, 4.0)      // WIDEN range (not narrow it)
-        });
+        // Use strict 1.0 tolerance by default (matches original behavior) to preserve small features
+        let tolerance = tolerance.unwrap_or(1.0);
         
         let past_delta = |from: usize, to: usize| -> f64 {
             (from..to).skip(1).map(|i| {
