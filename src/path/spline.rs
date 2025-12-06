@@ -76,25 +76,40 @@ impl Spline {
         curvature_window: usize,
         penalty_tolerance: f64,
     ) -> Self {
+        eprintln!("=== SPLINE CONVERSION DEBUG (curvature_aware: {}) ===", curvature_aware);
+
         let path = if curvature_aware {
-            // For curvature-aware: Light cleanup only
             let raw_path = PathI32::image_to_path(image, clockwise, PathSimplifyMode::None);
-            PathSimplify::remove_staircase(&raw_path, clockwise)  // Just remove stairs
+            eprintln!("1. Raw pixel boundary: {} points", raw_path.len());
+            let cleaned = PathSimplify::remove_staircase(&raw_path, clockwise);
+            eprintln!("2. After staircase removal: {} points", cleaned.len());
+            cleaned
         } else {
-            // For non-curvature: Full polygon simplification
-            PathI32::image_to_path(image, clockwise, PathSimplifyMode::Polygon)
+            // When curvature_aware is false, Polygon mode does the initial simplification.
+            let polygon_path = PathI32::image_to_path(image, clockwise, PathSimplifyMode::Polygon);
+            eprintln!("1. Raw path -> Polygon simplification: {} points", polygon_path.len());
+            polygon_path
         };
         
         let simplified_path = if curvature_aware {
-            PathSimplify::simplify_with_curvature(&path, penalty_tolerance, segment_length, curvature_window, feature_threshold)
+            let simplified = PathSimplify::simplify_with_curvature(&path, penalty_tolerance, segment_length, curvature_window, feature_threshold);
+            eprintln!("3. After curvature simplification: {} points", simplified.len());
+            simplified
         } else {
+            eprintln!("2. Curvature simplification: SKIPPED");
             path
         };
-    
+
         let analyzer = CurvatureAnalyzer::new(segment_length, curvature_window, feature_threshold);
         let profile = analyzer.analyze_path(&simplified_path.to_path_f64().path.iter().map(|p| crate::curvature::Point::new(p.x, p.y)).collect::<Vec<_>>());
-        let path = simplified_path.smooth(corner_threshold, outset_ratio, segment_length, max_iterations, &profile);
-        Self::from_path_f64(&path, splice_threshold)
+        
+        let smoothed_path = simplified_path.smooth(corner_threshold, outset_ratio, segment_length, max_iterations, &profile);
+        eprintln!("4. After smoothing: {} points", smoothed_path.len());
+
+        let result = Self::from_path_f64(&smoothed_path, splice_threshold);
+        eprintln!("5. Final spline has {} curves", result.num_curves());
+        eprintln!("====================================================\\n");
+        result
     }    /// Returns a spline by curve-fitting a path.
     /// 
     /// Splice threshold is specified in radians.
@@ -134,14 +149,16 @@ impl Spline {
             let current = cut_points[i];
             let next = cut_points[j];
             let subpath = Self::get_circular_subpath(path, current, next);
-            let bezier_points = SubdivideSmooth::fit_points_with_bezier(&subpath);
+            let bezier_curves = SubdivideSmooth::fit_points_with_bezier(&subpath);
 
-            // Only the first curve need to add the first point
-            if i==0 {
-                result = Self::new(bezier_points[0]);
+            for (k, bezier_points) in bezier_curves.iter().enumerate() {
+                // Only the first curve need to add the first point
+                if i==0 && k==0 {
+                    result = Self::new(bezier_points[0]);
+                }
+                // Subsequent curves take their first point from previous curve's last point
+                result.add(bezier_points[1], bezier_points[2], bezier_points[3]);
             }
-            // Subsequent curves take their first point from previous curve's last point
-            result.add(bezier_points[1], bezier_points[2], bezier_points[3]);
         }
 
         result

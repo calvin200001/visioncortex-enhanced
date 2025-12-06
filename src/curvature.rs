@@ -359,7 +359,7 @@ mod tests {
             Point::new(2.0, 2.0),
         ];
         
-        let analyzer = CurvatureAnalyzer::new(8.0);
+        let analyzer = CurvatureAnalyzer::new(8.0, 5, 0.3);
         let profile = analyzer.analyze_path(&straight);
         
         assert!(profile.curvatures[1].abs() < 0.01);
@@ -375,7 +375,7 @@ mod tests {
             Point::new(1.0, 1.0),
         ];
         
-        let analyzer = CurvatureAnalyzer::new(8.0);
+        let analyzer = CurvatureAnalyzer::new(8.0, 5, 0.3);
         let profile = analyzer.analyze_path(&corner);
         
         assert!(profile.curvatures[1].abs() > 0.2);

@@ -97,24 +97,46 @@ impl SubdivideSmooth {
         splice_points
     }
 
-    /// Takes a splice of points, returns 4 control points representing the approximating Bezier curve using a curve-fitter.
-    pub fn fit_points_with_bezier(points: &[PointF64]) -> [PointF64; 4] {
+    /// Takes a splice of points, returns control points representing the approximating Bezier curves using a curve-fitter.
+    pub fn fit_points_with_bezier(points: &[PointF64]) -> Vec<[PointF64; 4]> {
             
-        let opt = bezier::Curve::fit_from_points(points, 10.0);
+        let opt = bezier::Curve::fit_from_points(points, 1.0);
         match opt {
-            None => [PointF64::default(),PointF64::default(),PointF64::default(),PointF64::default()],
+            None => vec![[PointF64::default(); 4]],
             Some(curves) => {
     
                 if curves.is_empty() {
-                    return [PointF64::default(),PointF64::default(),PointF64::default(),PointF64::default()];
+                    return vec![[PointF64::default(); 4]];
                 }
-                let curve = curves[0];
-                let p1 = points[0];
-                let p4 = points[points.len()-1];
-    
-                let (p2, p3) = curve.control_points;
-    
-                Self::retract_handles(&p1, &p2, &p3, &p4)
+                
+                let mut result = Vec::with_capacity(curves.len());
+                let len = curves.len();
+                
+                for (i, curve) in curves.iter().enumerate() {
+                    // Use the fitter's control points
+                    // Note: flo_curves::bezier::Curve uses GenericCoordinate, we assume it matches PointF64 structure or has x/y accessors
+                    // compatible with what was implicitly used before. 
+                    // Actually, previous code: let (p2, p3) = curve.control_points;
+                    // impl BezierCurve for Curve<Coord> defines control_points as (Coord, Coord).
+                    
+                    // We need to construct PointF64 from the curve's points.
+                    // Since we don't know the exact trait bounds of PointF64 vs flo_curves here without checking impls,
+                    // we rely on the fact that 'points' passed in were PointF64, so the fitted curve uses PointF64 too.
+                    
+                    let p1 = curve.start_point;
+                    let (p2, p3) = curve.control_points;
+                    let p4 = curve.end_point;
+                    
+                    // For the very first point of the first curve, force it to match input to avoid gaps
+                    let p1_final = if i == 0 { points[0] } else { p1 };
+                    
+                    // For the very last point of the last curve, force it to match input
+                    let p4_final = if i == len - 1 { points[points.len()-1] } else { p4 };
+                    
+                    result.push(Self::retract_handles(&p1_final, &p2, &p3, &p4_final));
+                }
+                
+                result
             }
         }
     }

@@ -4,6 +4,8 @@ pub mod reduce;
 mod simplify;
 mod smooth;
 mod spline;
+#[cfg(test)]
+mod curve_test;
 mod walker;
 mod util;
 
