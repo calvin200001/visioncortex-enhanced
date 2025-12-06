@@ -108,8 +108,8 @@ impl PathSimplify {
             let size = width.max(height);
             
             // Adaptive tolerance: 2.5% of feature size, clamped to reasonable range
-            let adaptive = size * 0.015;  // Gentler: 1.5% instead of 2.5%
-            adaptive.clamp(0.3, 2.0)      // Tighter range for small features
+            let adaptive = size * 0.04;   // INCREASE to 4% (not decrease to 1.5%)
+            adaptive.clamp(0.8, 4.0)      // WIDEN range (not narrow it)
         });
         
         let past_delta = |from: usize, to: usize| -> f64 {
