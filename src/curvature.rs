@@ -151,28 +151,32 @@ impl CurvatureAnalyzer {
         let len = curvatures.len();
         let mut types = vec![FeatureType::Straight; len];
         
+        let window = 3;  // Look ±3 points
+        
         for i in 0..len {
             let k = curvatures[i].abs();
             
             if k < self.feature_threshold * 0.5 {
                 // Very low curvature = straight line
                 types[i] = FeatureType::Straight;
-            } else if k > self.feature_threshold {
+            } else {
                 // High curvature - need to distinguish corner vs curve
-                // Look at rate of curvature change
-                let prev = if i > 0 { i - 1 } else { len - 1 };
-                let next = (i + 1) % len;
+                // Look at a WIDER window for stable classification
+                let mut local_curvatures = Vec::new();
+                for offset in -(window as i32)..=(window as i32) {
+                    let idx = ((i as i32 + offset).rem_euclid(len as i32)) as usize;
+                    local_curvatures.push(curvatures[idx].abs());
+                }
+
+                // Calculate variance - high variance = corner, low variance = smooth curve
+                let mean = local_curvatures.iter().sum::<f64>() / local_curvatures.len() as f64;
+                let variance = local_curvatures.iter()
+                    .map(|&c| (c - mean).powi(2))
+                    .sum::<f64>() / local_curvatures.len() as f64;
                 
-                let k_prev = curvatures[prev].abs();
-                let k_next = curvatures[next].abs();
-                
-                // If curvature changes abruptly, it's a corner
-                // If curvature is consistently high, it's a smooth curve
-                let change_rate = ((k - k_prev).abs() + (k - k_next).abs()) / 2.0;
-                
-                if change_rate > self.feature_threshold {
+                if variance > 0.1 {  // High variance = abrupt change = corner
                     types[i] = FeatureType::Corner;
-                } else {
+                } else {  // High curvature but smooth = curve
                     types[i] = FeatureType::Curve;
                 }
             }

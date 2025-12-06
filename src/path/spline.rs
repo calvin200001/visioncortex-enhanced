@@ -76,23 +76,26 @@ impl Spline {
         curvature_window: usize,
         penalty_tolerance: f64,
     ) -> Self {
-        // AFTER: Get raw path, let curvature analysis decide what to simplify
-        let path = PathI32::image_to_path(image, clockwise, PathSimplifyMode::None);
+        let path = if curvature_aware {
+            // For curvature-aware: Light cleanup only
+            let raw_path = PathI32::image_to_path(image, clockwise, PathSimplifyMode::None);
+            PathSimplify::remove_staircase(&raw_path, clockwise)  // Just remove stairs
+        } else {
+            // For non-curvature: Full polygon simplification
+            PathI32::image_to_path(image, clockwise, PathSimplifyMode::Polygon)
+        };
         
         let simplified_path = if curvature_aware {
             PathSimplify::simplify_with_curvature(&path, penalty_tolerance, segment_length, curvature_window, feature_threshold)
         } else {
-            // Only use polygon simplification if NOT curvature-aware
-            let polygon_path = PathI32::image_to_path(image, clockwise, PathSimplifyMode::Polygon);
-            polygon_path
+            path
         };
     
         let analyzer = CurvatureAnalyzer::new(segment_length, curvature_window, feature_threshold);
         let profile = analyzer.analyze_path(&simplified_path.to_path_f64().path.iter().map(|p| crate::curvature::Point::new(p.x, p.y)).collect::<Vec<_>>());
         let path = simplified_path.smooth(corner_threshold, outset_ratio, segment_length, max_iterations, &profile);
         Self::from_path_f64(&path, splice_threshold)
-    }
-    /// Returns a spline by curve-fitting a path.
+    }    /// Returns a spline by curve-fitting a path.
     /// 
     /// Splice threshold is specified in radians.
     pub fn from_path_f64(path: &PathF64, splice_threshold: f64) -> Self {
