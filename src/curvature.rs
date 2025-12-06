@@ -18,11 +18,23 @@ impl Point {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum FeatureType {
+    /// Sharp corner (high curvature, abrupt angle change) - like corners of "5", "7"
+    Corner,
+    /// Smooth curve (high curvature, gradual) - like bowls of "3", "9"  
+    Curve,
+    /// Straight line (low curvature) - can be simplified aggressively
+    Straight,
+}
+
 #[derive(Debug)]
 pub struct CurvatureProfile {
-    /// Curvature value at each point (higher = sharper turn)
+    /// Curvature value at each point
     pub curvatures: Vec<f64>,
-    /// Whether each point is a "feature point" (high artistic importance)
+    /// Classify each point's feature type
+    pub feature_types: Vec<FeatureType>,
+    /// Whether each point is a critical feature (for backwards compatibility)
     pub feature_points: Vec<bool>,
     /// Suggested segment lengths for smoothing
     pub adaptive_lengths: Vec<f64>,
@@ -81,83 +93,98 @@ impl CurvatureAnalyzer {
         if path.len() < 3 {
             return CurvatureProfile {
                 curvatures: vec![0.0; path.len()],
+                feature_types: vec![FeatureType::Straight; path.len()],
                 feature_points: vec![false; path.len()],
                 adaptive_lengths: vec![self.base_segment_length; path.len()],
             };
         }
         
-        // Step 1: Calculate raw curvature at each point
+        // Step 1: Calculate raw curvature
         let mut curvatures: Vec<f64> = (0..path.len())
             .map(|i| self.calculate_curvature(path, i))
             .collect();
         
-        // Step 2: Smooth curvature profile to avoid noise
+        // Step 2: Smooth curvature
         curvatures = self.smooth_curvature(&curvatures);
         
-        // Step 3: Detect feature points (high curvature = artistic detail)
-        let feature_points = self.detect_features(&curvatures);
+        // Step 3: Classify feature types (NEW)
+        let feature_types = self.classify_features(&curvatures, path);
         
-        // Step 4: Calculate adaptive segment lengths
-        // Key insight: High curvature regions need MORE points (shorter segments)
-        // Low curvature regions need FEWER points (longer segments)
-        let adaptive_lengths = self.compute_adaptive_lengths(&curvatures, &feature_points);
+        // Step 4: Mark critical features
+        let feature_points = feature_types.iter()
+            .map(|ft| *ft != FeatureType::Straight)
+            .collect();
+        
+        // Step 5: Adaptive segment lengths
+        let adaptive_lengths = self.compute_adaptive_lengths_by_type(&curvatures, &feature_types);
         
         CurvatureProfile {
             curvatures,
+            feature_types,
             feature_points,
             adaptive_lengths,
         }
     }
     
-    /// Smooth curvature values using moving average
-    fn smooth_curvature(&self, curvatures: &[f64]) -> Vec<f64> {
-        let window = self.window_size.min(curvatures.len() / 2);
-        if window == 0 {
-            return curvatures.to_vec();
+    /// Classify each point as Corner, Curve, or Straight
+    fn classify_features(&self, curvatures: &[f64], path: &[Point]) -> Vec<FeatureType> {
+        let len = curvatures.len();
+        let mut types = vec![FeatureType::Straight; len];
+        
+        for i in 0..len {
+            let k = curvatures[i].abs();
+            
+            if k < self.feature_threshold * 0.5 {
+                // Very low curvature = straight line
+                types[i] = FeatureType::Straight;
+            } else if k > self.feature_threshold {
+                // High curvature - need to distinguish corner vs curve
+                // Look at rate of curvature change
+                let prev = if i > 0 { i - 1 } else { len - 1 };
+                let next = (i + 1) % len;
+                
+                let k_prev = curvatures[prev].abs();
+                let k_next = curvatures[next].abs();
+                
+                // If curvature changes abruptly, it's a corner
+                // If curvature is consistently high, it's a smooth curve
+                let change_rate = ((k - k_prev).abs() + (k - k_next).abs()) / 2.0;
+                
+                if change_rate > self.feature_threshold {
+                    types[i] = FeatureType::Corner;
+                } else {
+                    types[i] = FeatureType::Curve;
+                }
+            }
         }
         
-        curvatures
-            .iter()
-            .enumerate()
-            .map(|(i, _)| {
-                let start = i.saturating_sub(window);
-                let end = (i + window + 1).min(curvatures.len());
-                let sum: f64 = curvatures[start..end].iter().map(|k| k.abs()).sum();
-                let count = (end - start) as f64;
-                sum / count
-            })
-            .collect()
+        types
     }
     
-    /// Detect points that deserve artistic attention
-    fn detect_features(&self, curvatures: &[f64]) -> Vec<bool> {
-        curvatures
-            .iter()
-            .map(|&k| k.abs() > self.feature_threshold)
-            .collect()
-    }
-    
-    /// Compute adaptive segment lengths for smoothing
-    /// This is the key artistic decision function
-    fn compute_adaptive_lengths(
+    /// Compute adaptive lengths based on feature classification
+    fn compute_adaptive_lengths_by_type(
         &self,
         curvatures: &[f64],
-        feature_points: &[bool],
+        feature_types: &[FeatureType],
     ) -> Vec<f64> {
         curvatures
             .iter()
-            .zip(feature_points.iter())
-            .map(|(&k, &is_feature)| {
-                if is_feature {
-                    // High curvature: use shorter segments for detail preservation
-                    // Scale inversely with curvature magnitude
-                    let scale = (1.0 - k.abs().min(1.0)) * 0.5 + 0.3;
-                    self.base_segment_length * scale
-                } else {
-                    // Low curvature: use longer segments for simplification
-                    // This is where the "artistry" comes from - aggressive simplification
-                    let smoothness = 1.0 - k.abs().min(0.5);
-                    self.base_segment_length * (1.0 + smoothness * 1.5)
+            .zip(feature_types.iter())
+            .map(|(&k, &ft)| {
+                match ft {
+                    FeatureType::Corner => {
+                        // Corners need very short segments to preserve sharpness
+                        self.base_segment_length * 0.3
+                    }
+                    FeatureType::Curve => {
+                        // Curves need moderate segments to capture smoothness
+                        let density = 1.0 - (k.abs().min(1.0) * 0.5);
+                        self.base_segment_length * density.clamp(0.4, 0.8)
+                    }
+                    FeatureType::Straight => {
+                        // Straight lines can be simplified aggressively
+                        self.base_segment_length * 2.0
+                    }
                 }
             })
             .collect()
@@ -179,13 +206,12 @@ impl ArtisticSimplifier {
         }
     }
     
-    /// Enhanced simplification that preserves artistic features
+    /// Enhanced simplification that preserves corners and curves differently
     pub fn simplify_with_curvature(&self, path: &[Point]) -> Vec<Point> {
         if path.len() < 3 {
             return path.to_vec();
         }
         
-        // Analyze curvature profile
         let profile = self.analyzer.analyze_path(path);
         
         let mut simplified = Vec::new();
@@ -193,30 +219,39 @@ impl ArtisticSimplifier {
         
         let mut i = 1;
         while i < path.len() - 1 {
-            // Check if this is a feature point - if so, NEVER remove it
-            if profile.feature_points[i] {
+            let feature_type = profile.feature_types[i];
+            
+            // NEVER remove corners or curves
+            if feature_type == FeatureType::Corner || feature_type == FeatureType::Curve {
                 simplified.push(path[i]);
                 i += 1;
                 continue;
             }
             
-            // Try to extend subpath as far as possible
+            // For straight sections, try to extend as far as possible
             let mut j = i + 1;
-            let mut max_penalty: f64 = 0.0;
             
             while j < path.len() {
-                // Calculate penalty for this subpath
+                // Stop if we hit a corner or curve
+                if j < profile.feature_types.len() {
+                    let next_type = profile.feature_types[j];
+                    if next_type == FeatureType::Corner || next_type == FeatureType::Curve {
+                        break;
+                    }
+                }
+                
+                // Calculate penalty for this segment
                 let penalty = self.calculate_penalty(&path[i - 1], &path[j], &path[i..j]);
                 
-                // Adjust tolerance based on local curvature
-                // Low curvature = more aggressive simplification allowed
+                // Use adjusted tolerance based on local curvature
                 let local_curvature = profile.curvatures[i..j]
                     .iter()
                     .map(|k| k.abs())
                     .fold(0.0, f64::max);
                 
-                let adjusted_tolerance = if local_curvature < 0.1 {
-                    self.penalty_tolerance * 2.0 // Allow more simplification in flat areas
+                let adjusted_tolerance = if local_curvature < 0.05 {
+                    // Very straight - allow aggressive simplification
+                    self.penalty_tolerance * 3.0
                 } else {
                     self.penalty_tolerance
                 };
@@ -225,17 +260,9 @@ impl ArtisticSimplifier {
                     break;
                 }
                 
-                max_penalty = max_penalty.max(penalty);
-                
-                // Stop if we hit a feature point
-                if j < path.len() && profile.feature_points[j] {
-                    break;
-                }
-                
                 j += 1;
             }
             
-            // Add the endpoint of the simplified subpath
             if j > i + 1 {
                 simplified.push(path[j - 1]);
                 i = j - 1;
